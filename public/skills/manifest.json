@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "skills": [
+    {
+      "id": "react-patterns",
+      "name": "react-patterns",
+      "description": "Modern React 19 patterns for building maintainable components. Use when writing or refactoring React code (JSX/TSX), choosing between hooks, designing component APIs, or wiring state management.",
+      "version": "1.0.1",
+      "tags": ["react", "frontend", "best-practices"],
+      "entry": "react-patterns/SKILL.md",
+      "files": ["react-patterns/SKILL.md", "react-patterns/scripts/hello.js"]
+    },
+    {
+      "id": "debugging",
+      "name": "debugging",
+      "description": "Systematic debugging workflow for runtime errors, white screens, and unexpected behavior in web apps. Use when the preview breaks or behaves wrongly.",
+      "version": "1.0.0",
+      "tags": ["process", "debugging"],
+      "entry": "debugging/SKILL.md",
+      "files": ["debugging/SKILL.md"]
+    },
+    {
+      "id": "tailwind-helpers",
+      "name": "tailwind-helpers",
+      "description": "Production-grade Tailwind CSS patterns for responsive layouts, dark mode, spacing scales, shadcn integration, and accessible color usage. Load before writing any styled UI.",
+      "version": "1.0.0",
+      "tags": ["tailwind", "css", "ui"],
+      "entry": "tailwind-helpers/SKILL.md",
+      "files": ["tailwind-helpers/SKILL.md"]
+    },
+    {
+      "id": "accessibility",
+      "name": "accessibility",
+      "description": "Web accessibility essentials covering semantic HTML, keyboard navigation, ARIA usage, focus management, contrast, and accessible forms. Load before building any interactive component.",
+      "version": "1.0.0",
+      "tags": ["a11y", "wcag", "ui"],
+      "entry": "accessibility/SKILL.md",
+      "files": ["accessibility/SKILL.md"]
+    },
+    {
+      "id": "typescript-patterns",
+      "name": "typescript-patterns",
+      "description": "TypeScript patterns and conventions for safer, more maintainable code. Covers narrowing, discriminated unions, satisfies, unknown vs any, type guards, and when to keep types simple.",
+      "version": "1.0.0",
+      "tags": ["typescript", "patterns"],
+      "entry": "typescript-patterns/SKILL.md",
+      "files": ["typescript-patterns/SKILL.md"]
+    },
+    {
+      "id": "design-taste-frontend",
+      "name": "design-taste-frontend",
+      "description": "Anti-slop frontend direction for landing pages, portfolios, editorial pages, and design-forward redesigns. Use after reading the brief to infer a fitting visual system, preserve existing product constraints, and run a strict pre-flight audit.",
+      "version": "1.0.0",
+      "tags": ["frontend", "design", "landing-page", "portfolio", "redesign"],
+      "entry": "design-taste-frontend/SKILL.md",
+      "files": [
+        "design-taste-frontend/SKILL.md",
+        "design-taste-frontend/SOURCE.md",
+        "design-taste-frontend/LICENSE.txt"
+      ]
+    },
+    {
+      "id": "frontend-design",
+      "name": "frontend-design",
+      "description": "Create distinctive, production-grade product interfaces and web components with strong hierarchy, accessibility, and a coherent visual direction. Use for dashboards, settings, forms, application flows, and general frontend styling.",
+      "version": "1.0.0",
+      "tags": ["frontend", "product-ui", "design", "accessibility"],
+      "entry": "frontend-design/SKILL.md",
+      "files": [
+        "frontend-design/SKILL.md",
+        "frontend-design/SOURCE.md",
+        "frontend-design/LICENSE.txt"
+      ]
+    },
+    {
+      "id": "code-review",
+      "name": "code-review",
+      "description": "Review a diff, file set, or current project changes for correctness, security, performance, reliability, and maintainability. Use project evidence, prioritize actionable findings, and report only unless the user explicitly asks for fixes.",
+      "version": "1.0.0",
+      "tags": ["review", "correctness", "security", "performance"],
+      "entry": "code-review/SKILL.md",
+      "files": [
+        "code-review/SKILL.md",
+        "code-review/SOURCE.md",
+        "code-review/LICENSE.txt"
+      ]
+    },
+    {
+      "id": "code-simplifier",
+      "name": "code-simplifier",
+      "description": "Simplify user-specified or newly modified code for clarity, consistency, and maintainability while preserving exact behavior. Follow AGENTS.md, CLAUDE.md, and established project conventions; avoid broad cleanup.",
+      "version": "1.0.0",
+      "tags": ["refactoring", "maintainability", "clarity"],
+      "entry": "code-simplifier/SKILL.md",
+      "files": [
+        "code-simplifier/SKILL.md",
+        "code-simplifier/SOURCE.md",
+        "code-simplifier/LICENSE.txt"
+      ]
+    }
+  ]
+}

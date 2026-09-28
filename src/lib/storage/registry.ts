@@ -1,0 +1,238 @@
+import { useConversationStore } from "../../store/conversation";
+import { useMemoryStore } from "../../store/memory";
+import { useMcpStore } from "../../store/mcp";
+import { useProjectTemplateStore } from "../../store/project-templates";
+import { useSettingsStore } from "../../store/settings";
+import { useSkillsStore } from "../../store/skills";
+import { useSnapshotStore } from "../../store/snapshot";
+import {
+  clearAttachmentStorage,
+  estimateAttachmentStorage,
+} from "../attachments/store";
+import { clearPermissionActivity } from "../security/activity-log";
+import {
+  nativeSkillScriptRevocation,
+  nativeSseRevocation,
+} from "../security/native-execution-revocation";
+import { resetSkillRegistryForTesting } from "../skills/instance";
+import {
+  beginMcpLifecycleRevocation,
+  finishMcpLifecycleRevocation,
+} from "../mcp/revocation";
+import { redactStorageExport } from "./export-redaction";
+
+export interface StorageEstimate {
+  bytes: number;
+  items: number;
+}
+
+export interface StorageDomain {
+  id:
+    | "settings"
+    | "conversations"
+    | "snapshots"
+    | "memories"
+    | "templates"
+    | "mcp"
+    | "skills"
+    | "attachments";
+  estimate(): Promise<StorageEstimate>;
+  clear(): Promise<void>;
+  export(): Promise<unknown>;
+}
+
+function jsonEstimate(value: unknown, items: number): StorageEstimate {
+  return {
+    bytes: new TextEncoder().encode(JSON.stringify(value)).byteLength,
+    items,
+  };
+}
+
+async function clearPersistedStore(
+  clearStorage: () => void | Promise<void>,
+): Promise<void> {
+  await Promise.resolve(clearStorage());
+}
+
+async function clearSkillFiles(): Promise<void> {
+  const { createSkillFs, isSkillsAvailable } = await import("../skills/fs");
+  if (!isSkillsAvailable()) return;
+  const fs = createSkillFs();
+  for (const entry of await fs.readDir("")) {
+    if (entry.isDirectory) {
+      await fs.remove(entry.name, { recursive: true });
+    }
+  }
+  resetSkillRegistryForTesting();
+}
+
+export const STORAGE_DOMAINS: readonly StorageDomain[] = [
+  {
+    id: "settings",
+    estimate: async () => jsonEstimate(useSettingsStore.getState(), 1),
+    clear: async () => {
+      await clearPersistedStore(() => useSettingsStore.persist.clearStorage());
+      useSettingsStore.getState().resetAll();
+      clearPermissionActivity();
+    },
+    export: async () =>
+      redactStorageExport({
+        ai: useSettingsStore.getState().ai,
+        webSearch: useSettingsStore.getState().webSearch,
+        assetSearch: useSettingsStore.getState().assetSearch,
+        system: useSettingsStore.getState().system,
+      }),
+  },
+  {
+    id: "conversations",
+    estimate: async () => {
+      const state = useConversationStore.getState();
+      return jsonEstimate(
+        state.conversations,
+        Object.keys(state.conversations).length,
+      );
+    },
+    clear: async () => {
+      await clearPersistedStore(() =>
+        useConversationStore.persist.clearStorage(),
+      );
+      useConversationStore.setState({ conversations: {}, activeId: null });
+    },
+    export: async () =>
+      redactStorageExport(useConversationStore.getState().conversations),
+  },
+  {
+    id: "snapshots",
+    estimate: async () => {
+      const snapshots = useSnapshotStore.getState().snapshots;
+      return jsonEstimate(
+        snapshots,
+        Object.values(snapshots).reduce((sum, chain) => sum + chain.length, 0),
+      );
+    },
+    clear: async () => {
+      await clearPersistedStore(() => useSnapshotStore.persist.clearStorage());
+      useSnapshotStore.setState({ snapshots: {} });
+    },
+    export: async () =>
+      redactStorageExport(useSnapshotStore.getState().snapshots),
+  },
+  {
+    id: "memories",
+    estimate: async () => {
+      const memories = useMemoryStore.getState().memories;
+      return jsonEstimate(memories, memories.length);
+    },
+    clear: async () => {
+      await clearPersistedStore(() => useMemoryStore.persist.clearStorage());
+      useMemoryStore.setState({ memories: [] });
+    },
+    export: async () => redactStorageExport(useMemoryStore.getState().memories),
+  },
+  {
+    id: "templates",
+    estimate: async () => {
+      const templates = useProjectTemplateStore.getState().templates;
+      return jsonEstimate(templates, Object.keys(templates).length);
+    },
+    clear: async () => {
+      await clearPersistedStore(() =>
+        useProjectTemplateStore.persist.clearStorage(),
+      );
+      useProjectTemplateStore.setState({ templates: {} });
+    },
+    export: async () =>
+      redactStorageExport(useProjectTemplateStore.getState().templates),
+  },
+  {
+    id: "mcp",
+    estimate: async () => {
+      const servers = useMcpStore.getState().servers;
+      return jsonEstimate(servers, Object.keys(servers).length);
+    },
+    clear: async () => {
+      const { getMcpConnectionManager } =
+        await import("../mcp/connection-manager");
+      await getMcpConnectionManager().closeAll();
+      await clearPersistedStore(() => useMcpStore.persist.clearStorage());
+      useMcpStore.setState({ globalEnabled: true, servers: {}, runtime: {} });
+    },
+    export: async () => redactStorageExport(useMcpStore.getState().servers),
+  },
+  {
+    id: "skills",
+    estimate: async () => {
+      const skills = useSkillsStore.getState().skills;
+      return jsonEstimate(skills, Object.keys(skills).length);
+    },
+    clear: async () => {
+      await clearSkillFiles();
+      await clearPersistedStore(() => useSkillsStore.persist.clearStorage());
+      useSkillsStore.setState({ skills: {}, _hasHydrated: true });
+    },
+    export: async () => redactStorageExport(useSkillsStore.getState().skills),
+  },
+  {
+    id: "attachments",
+    estimate: async () => {
+      const { count, bytes } = await estimateAttachmentStorage();
+      return { items: count, bytes };
+    },
+    clear: clearAttachmentStorage,
+    export: async () => ({
+      note: "Attachment blobs are intentionally excluded from generic export.",
+      ...(await estimateAttachmentStorage()),
+    }),
+  },
+] as const;
+
+export async function estimateStorageDomains(): Promise<
+  Record<StorageDomain["id"], StorageEstimate>
+> {
+  return Object.fromEntries(
+    await Promise.all(
+      STORAGE_DOMAINS.map(async (domain) => [
+        domain.id,
+        await domain.estimate(),
+      ]),
+    ),
+  ) as Record<StorageDomain["id"], StorageEstimate>;
+}
+
+export async function clearAllStorageDomains(): Promise<string[]> {
+  // This synchronous gate is intentionally the first operation: any connect
+  // already in flight becomes stale before cleanup performs its first await.
+  const revocation = beginMcpLifecycleRevocation();
+  const skillRevocation = nativeSkillScriptRevocation.begin();
+  const sseRevocation = nativeSseRevocation.begin();
+  try {
+    const [
+      { revokeNativeProxyPolicy },
+      { clearTauriMcpRemotePolicies },
+      { cancelAllNativeSkillScripts },
+      { cancelAllNativeSseStreams },
+    ] = await Promise.all([
+      import("../infra/proxy"),
+      import("../mcp/tauri-host"),
+      import("../skills/script-executor-tauri"),
+      import("../infra/sse-bridge"),
+    ]);
+    await Promise.all([
+      revokeNativeProxyPolicy(),
+      clearTauriMcpRemotePolicies(),
+      cancelAllNativeSkillScripts(),
+      cancelAllNativeSseStreams(),
+    ]);
+
+    const cleared: string[] = [];
+    for (const domain of STORAGE_DOMAINS) {
+      await domain.clear();
+      cleared.push(domain.id);
+    }
+    return cleared;
+  } finally {
+    nativeSseRevocation.finish(sseRevocation);
+    nativeSkillScriptRevocation.finish(skillRevocation);
+    finishMcpLifecycleRevocation(revocation);
+  }
+}

@@ -1,0 +1,6 @@
+export const ASK_USER_QUESTION_CONTRACT = `Use ask_user_question for both ordinary clarification and an explicit "grill me" or stress-test interview under these rules:
+- First inspect any project files, configuration, logs, or other available evidence that can answer the question. Never ask the user for a discoverable fact.
+- Ordinary clarification may batch 1-4 independent questions in one call. If the user requests grilling/stress-testing, or a later question depends on an earlier answer, ask exactly one question per call, wait for the answer, then re-evaluate the next branch before calling the tool again.
+- Every question must offer a recommended option. Mark its label with the exact suffix "(Recommended)" or "（推荐）" so the interface can identify it. Keep all options distinct and explain the tradeoff in one sentence.
+- During a grilling interview, continue until the goal, observable success criteria, audience and scope, constraints, key tradeoffs, and unacceptable failure boundaries are decision-complete. Do not begin implementation before the interview is complete.
+- When the interview ends, follow the active mode and the user's authorization: summarize the decisions, submit a plan, or continue the already-authorized implementation. Do not add a separate confirmation when the answers already authorize the next step.`;

@@ -1,0 +1,242 @@
+import type {
+  Message as _Message,
+  ProjectFiles as _ProjectFiles,
+  StructuredGenerationErrorKind as _StructuredGenerationErrorKind,
+  ToolExecutionOutput as _ToolExecutionOutput,
+  AttachmentRef as _AttachmentRef,
+} from "../lib/ai/generator-types";
+
+export type {
+  ProjectFiles,
+  ContentPart,
+  Message,
+  ToolCall,
+  ToolDefinition,
+  FileChange,
+  GenerateResult,
+  GeneratorRunState,
+  GeneratorEvent,
+  StructuredGenerationError,
+  StructuredGenerationErrorKind,
+  GeneratorOptions,
+  GeneratorEvents,
+  ToolExecutionContent,
+  ToolExecutionContext,
+  ToolExecutionOutput,
+  McpToolExecutionIdentity,
+  AttachmentRef,
+  ResolvedAttachment,
+  MessageMetadata,
+} from "../lib/ai/generator-types";
+
+export type {
+  AISettings,
+  WebSearchSettings,
+  AssetSearchSettings,
+} from "../store/settings";
+export type { OpenAIClientConfig } from "../lib/ai/client";
+export type { ApiType } from "../lib/ai/provider-config";
+
+// ─── Chat UI types ────────────────────────────────────────────────────────────
+
+/** Attachment in the input pipeline (before sending) */
+export interface Attachment extends _AttachmentRef {
+  /** Ephemeral object URL used only while the input is visible. */
+  previewUrl?: string;
+  /** Legacy inline content. New attachments are stored in the Blob domain. */
+  content?: string;
+}
+
+export interface AttachmentConstraints {
+  maxCount: number;
+  maxImageBytes: number;
+  maxFileBytes: number;
+  maxTotalBytes: number;
+}
+
+export type AttachmentValidationCode =
+  | "max_count"
+  | "max_total_size"
+  | "max_image_size"
+  | "unsupported_type"
+  | "max_file_size";
+
+export type AttachmentValidationResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code: AttachmentValidationCode;
+      reason: string;
+      limit?: number;
+      name?: string;
+    };
+
+export interface TextBlock {
+  type: "text";
+  content: string;
+  id: string;
+}
+
+export interface ImageBlock {
+  type: "image";
+  url?: string;
+  attachmentId?: string;
+  name?: string;
+  id: string;
+}
+
+export interface FileBlock {
+  type: "file";
+  name: string;
+  content?: string;
+  attachmentId?: string;
+  mimeType?: string;
+  /** Original file size in bytes */
+  size: number;
+  id: string;
+}
+
+export interface ThinkingBlock {
+  type: "thinking";
+  content: string;
+  id: string;
+}
+
+export interface ToolBlock {
+  type: "tool";
+  toolName: string;
+  title: string;
+  path: string;
+  paths?: string[];
+  result: string;
+  /** Persisted rich output and original MCP identity, when applicable. */
+  toolOutput?: _ToolExecutionOutput;
+  /** Tool call id used by the AI SDK — needed to correlate with pending UI prompts. */
+  toolCallId: string;
+  /** Raw parsed arguments the AI passed to the tool. Used by interactive tools
+   *  (ask_user_question, exit_plan_mode) that render full args in the UI. */
+  rawArgs?: Record<string, unknown>;
+  id: string;
+}
+
+export type Block =
+  TextBlock | ImageBlock | FileBlock | ThinkingBlock | ToolBlock;
+
+export interface MergedMessage {
+  role: "user" | "assistant";
+  blocks: Block[];
+  id: string;
+  origin?: "auto_qa";
+  /** True when this assistant message was synthesized to report a local error
+   *  (network failure, aborted retry, etc.). Drives the retry affordance in the
+   *  UI without relying on string-prefix sniffing. */
+  isError?: boolean;
+  errorKind?: _StructuredGenerationErrorKind;
+  errorRetryable?: boolean;
+  errorStatus?: number;
+}
+
+// ─── Snapshot types ─────────────────────────────────────────────────────────
+
+/** Incremental project snapshot (git-like).
+ *  Snapshots come in two flavours:
+ *    - "patch" (default): records adds/patches/deletes relative to the prior snapshot
+ *    - "checkpoint": records the full file tree, anchoring future replays so we
+ *      don't have to walk the entire chain. Inserted automatically every
+ *      CHECKPOINT_INTERVAL patches.
+ */
+export interface ProjectSnapshot {
+  id: string;
+  /** The conversation this snapshot belongs to */
+  conversationId: string;
+  /** Associated MergedMessage ID (e.g. "assistant-0") */
+  messageId: string;
+  /** File path → unified diff patch (modified files only) */
+  patches: Record<string, string>;
+  /** Newly added files: path → full content */
+  addedFiles: Record<string, string>;
+  /** Paths of deleted files */
+  deletedFiles: string[];
+  createdAt: number;
+  /** Snapshot type — older records lack this field and are implicitly "patch". */
+  kind?: "patch" | "checkpoint";
+  /** Optional user-facing label for the snapshot history panel. */
+  label?: string;
+  /** Full file tree at this point. Only present on checkpoint snapshots. */
+  fullFiles?: _ProjectFiles;
+}
+
+// ─── Memory types ───────────────────────────────────────────────────────────
+
+export interface MemoryItem {
+  id: string;
+  content: string;
+  category: "preference" | "personal_info" | "instruction" | "fact" | "project";
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface MemoryOperation {
+  action: "add" | "update" | "delete";
+  /** Required for update and delete */
+  id?: string;
+  /** Required for add and update */
+  content?: string;
+  /** Required for add, optional for update */
+  category?: MemoryItem["category"];
+}
+
+// ─── Conversation types ──────────────────────────────────────────────────────
+
+/** Compressed context: summary text + the message index where compression starts */
+export interface CompressedContext {
+  summary: string;
+  fromIndex: number;
+}
+
+export type LocalAgentProvider = "codex" | "claude";
+
+export interface LocalAgentSessionRef {
+  provider: LocalAgentProvider;
+  sessionId: string;
+  transcriptFingerprint: string;
+  model?: string;
+  cliVersion: string;
+  updatedAt: number;
+}
+
+export type ProjectPreviewMode = "sandpack" | "code-only";
+
+export interface Conversation {
+  id: string;
+  title: string;
+  messages: _Message[];
+  files: _ProjectFiles;
+  template: string;
+  previewMode?: ProjectPreviewMode;
+  isProjectInitialized: boolean;
+  compressedContext?: CompressedContext;
+  localAgentSessions?: Partial<
+    Record<LocalAgentProvider, LocalAgentSessionRef>
+  >;
+  activeFile?: string;
+  pinned?: boolean;
+  archived?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ─── Project template types ─────────────────────────────────────────────────
+
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  files: _ProjectFiles;
+  template: string;
+  previewMode?: ProjectPreviewMode;
+  sourceConversationId?: string;
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+}

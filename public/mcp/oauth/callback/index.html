@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open Builder OAuth callback</title>
+  </head>
+  <body>
+    <p>Completing authorization…</p>
+    <script>
+      const appRoot = new URL("../../../", window.location.href);
+      const callback = new URL(appRoot);
+      callback.search = window.location.search;
+      callback.searchParams.set("open_builder_mcp_oauth_callback", "1");
+      window.location.replace(callback.toString());
+    </script>
+  </body>
+</html>
